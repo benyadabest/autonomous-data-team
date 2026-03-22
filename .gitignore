@@ -1,0 +1,11 @@
+.pytest_cache/
+__pycache__/
+.coverage
+.env
+archive_cache/
+runs/
+*.pyc
+.venv/
+.crewai-home/
+*.egg-info/
+.codex/
