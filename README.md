@@ -52,20 +52,6 @@ This is the default. You can also state it explicitly with text like:
 
 If you do not specify a mode, the system assumes `EDA + experiments`.
 
-## What local first means
-
-Yes, it can work right now if you send an email, but only if the local worker is running on your machine.
-
-That means all of the following need to be true:
-
-- your `.env` is populated
-- your sender email is included in `AUTHORIZED_SENDERS`
-- the inbox worker process is running
-- the machine has outbound access to AgentMail
-- if you want CrewAI-backed reasoning, the machine also needs outbound access to OpenAI
-
-If the worker is not running, the email will just sit in the AgentMail inbox until the process starts and polls it.
-
 ## Configuration
 
 Minimum required environment for the email workflow:
