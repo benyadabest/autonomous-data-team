@@ -4,8 +4,6 @@ This doc aims to establish core principles for building a Machine Learning model
 
 **TLDR**: Start simple, measure the right thing, and build end-to-end before going deep. Most gains come from data quality and feature engineering, not model complexity. Don’t introduce extra complexity if the results don’t require it.
 
-And feel free to ask the AI/ML team if you have any questions! @Vinay Bhat and @Luka Mladenovic drafted this if you want to tag someone specific.
-
 ### Principles
 
 **1. Frame the problem before touching data**
