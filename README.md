@@ -95,7 +95,7 @@ To process real emails, run:
 .venv/bin/autonomous-data-team inbox-worker --poll-interval 300
 ```
 
-For a one-shot poll:
+For a one-shot poll***:
 
 ```bash
 .venv/bin/autonomous-data-team inbox-worker --once
