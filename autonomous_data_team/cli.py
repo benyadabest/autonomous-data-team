@@ -6,6 +6,7 @@ from pathlib import Path
 import typer
 
 from .config import Settings
+from .hosted import serve
 from .service import inbox_worker, process_inbox_once, score_archive, score_edition, sync_archive, top_opportunities
 from .storage import Store
 from .swarm import run_local_dataset_swarm
@@ -61,6 +62,16 @@ def inbox_worker_command(
         typer.echo(json.dumps(result, indent=2))
         return
     inbox_worker(settings, store, poll_interval)
+
+
+@app.command("serve")
+def serve_command(
+    host: str | None = typer.Option(None, "--host"),
+    port: int | None = typer.Option(None, "--port"),
+    poll_interval: int | None = typer.Option(None, "--poll-interval"),
+) -> None:
+    settings, store = _settings_and_store()
+    serve(settings, store, host=host, port=port, poll_interval=poll_interval)
 
 
 @app.command("analyze-dataset")

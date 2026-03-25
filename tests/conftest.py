@@ -35,6 +35,9 @@ def settings(tmp_path: Path) -> Settings:
         swarm_orchestrator="heuristic",
         crewai_home_dir=tmp_path / "crewai_home",
         max_dataset_rows=50000,
+        bind_host="127.0.0.1",
+        port=8000,
+        worker_poll_interval=300,
         db_path=tmp_path / "state" / "opportunities.sqlite3",
         recent_default_count=25,
     )

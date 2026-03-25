@@ -29,6 +29,9 @@ class Settings:
     swarm_orchestrator: str
     crewai_home_dir: Path
     max_dataset_rows: int
+    bind_host: str
+    port: int
+    worker_poll_interval: int
     db_path: Path
     recent_default_count: int
 
@@ -63,6 +66,9 @@ class Settings:
                 os.getenv("CREWAI_HOME_DIR", str(runs_dir / ".crewai_home"))
             ).resolve(),
             max_dataset_rows=int(os.getenv("MAX_DATASET_ROWS", "50000")),
+            bind_host=os.getenv("BIND_HOST", "0.0.0.0"),
+            port=int(os.getenv("PORT", "8000")),
+            worker_poll_interval=int(os.getenv("WORKER_POLL_INTERVAL", "300")),
             db_path=Path(os.getenv("DB_PATH", str(runs_dir / "opportunities.sqlite3"))).resolve(),
             recent_default_count=int(os.getenv("RECENT_DEFAULT_COUNT", "25")),
         )
