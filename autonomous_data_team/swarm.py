@@ -4,9 +4,10 @@ import base64
 import json
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 from .config import Settings
-from .crewai_bridge import build_critique, build_problem_frame, build_report
+from .crewai_bridge import build_critique, build_eda_insights, build_problem_frame, build_report
 from .dataset_ingestion import save_message_attachments
 from .experiment_runner import build_dataset_profile, run_experiments
 from .mail import AgentMailAPI, extract_body_text
@@ -155,6 +156,7 @@ def _run_dataset_workers(
             dataset_dir,
             requester_notes,
             profile,
+            settings,
             store,
         )
 
@@ -210,6 +212,7 @@ def _run_dataset_workers(
         "dataset_name": attachment.filename,
         "report_path": str(report_path),
         "summary": report.executive_summary,
+        "body_markdown": report.body_markdown,
         "analysis_mode": analysis_mode,
         "best_model": experiment.best_model,
         "best_score": str(experiment.best_score),
@@ -234,7 +237,7 @@ def _write_run_summary(run_dir: Path, dataset_reports: list[dict[str, str]]) -> 
                     f"- Best score: `{report['best_score']}`",
                 ]
             )
-        lines.extend([f"- Report path: `{report['report_path']}`", ""])
+        lines.extend(["", "### Full Report", "", report["body_markdown"], ""])
     summary_path.write_text("\n".join(lines), encoding="utf-8")
     return summary_path
 
@@ -250,7 +253,10 @@ def _email_body(dataset_reports: list[dict[str, str]]) -> str:
                 f"  Best model: {report['best_model']} ({report['primary_metric']}={report['best_score']})"
             )
     lines.append("")
-    lines.append("A markdown summary is attached.")
+    lines.append("---")
+    lines.append("")
+    for report in dataset_reports:
+        lines.extend([report["body_markdown"], ""])
     return "\n".join(lines)
 
 
@@ -267,6 +273,7 @@ def _finish_eda_only_run(
     dataset_dir: Path,
     requester_notes: str,
     profile: DatasetProfile,
+    settings: Settings,
     store: Store,
 ) -> dict[str, str]:
     reporting_task = store.create_swarm_task(
@@ -275,7 +282,8 @@ def _finish_eda_only_run(
         dataset_name=attachment.filename,
         input_payload={"profile": asdict(profile), "requester_notes": requester_notes, "analysis_mode": EDA_ONLY},
     )
-    report = _build_eda_only_report(profile, requester_notes)
+    insights = build_eda_insights(settings, profile, requester_notes)
+    report = _build_eda_only_report(profile, requester_notes, insights)
     report_path = dataset_dir / "report.md"
     report_path.write_text(report.body_markdown, encoding="utf-8")
     store.record_artifact(run_id, attachment.filename, "report", str(report_path), {"worker": "reporting"})
@@ -284,6 +292,7 @@ def _finish_eda_only_run(
         "dataset_name": attachment.filename,
         "report_path": str(report_path),
         "summary": report.executive_summary,
+        "body_markdown": report.body_markdown,
         "analysis_mode": EDA_ONLY,
         "best_model": "not_run",
         "best_score": "not_run",
@@ -291,7 +300,9 @@ def _finish_eda_only_run(
     }
 
 
-def _build_eda_only_report(profile: DatasetProfile, requester_notes: str) -> ReportResult:
+def _build_eda_only_report(
+    profile: DatasetProfile, requester_notes: str, insights: dict[str, Any] | None = None
+) -> ReportResult:
     top_missing = [
         item for item in sorted(profile.missingness, key=lambda value: value["missing_pct"], reverse=True) if item["missing_count"]
     ][:5]
@@ -328,10 +339,35 @@ def _build_eda_only_report(profile: DatasetProfile, requester_notes: str) -> Rep
         body_lines.extend(f"- {note}" for note in profile.notes)
     if requester_notes.strip():
         body_lines.extend(["", "## Request notes", requester_notes.strip()])
+
+    executive_summary = "EDA completed; experiments were not run."
+    if insights:
+        executive_summary = insights.get("executive_summary", executive_summary)
+        if insights.get("project_ideas"):
+            body_lines.extend(["", "## Project ideas"])
+            for idea in insights["project_ideas"]:
+                body_lines.append(f"- {idea}")
+        if insights.get("wild_ideas"):
+            body_lines.extend(["", "## Out-of-the-box ideas"])
+            for idea in insights["wild_ideas"]:
+                body_lines.append(f"- {idea}")
+        if insights.get("ml_opportunities"):
+            body_lines.extend(["", "## ML opportunities"])
+            for opp in insights["ml_opportunities"]:
+                body_lines.append(f"- {opp}")
+        if insights.get("data_quality_concerns"):
+            body_lines.extend(["", "## Data quality concerns"])
+            for concern in insights["data_quality_concerns"]:
+                body_lines.append(f"- {concern}")
+        if insights.get("recommended_next_steps"):
+            body_lines.extend(["", "## Recommended next steps"])
+            for step in insights["recommended_next_steps"]:
+                body_lines.append(f"- {step}")
+
     return ReportResult(
         subject_line=f"EDA results for {profile.dataset_name}",
         body_markdown="\n".join(body_lines),
-        executive_summary="EDA completed; experiments were not run.",
+        executive_summary=executive_summary,
     )
 
 

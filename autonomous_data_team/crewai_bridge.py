@@ -24,6 +24,36 @@ def crewai_is_available(settings: Settings) -> bool:
     return True
 
 
+def build_eda_insights(
+    settings: Settings, profile: DatasetProfile, requester_notes: str
+) -> dict[str, Any] | None:
+    return _run_json_task(
+        settings,
+        role="Creative Data Strategist",
+        goal="Analyze a dataset profile and brainstorm both practical and unconventional ideas for what to do with the data.",
+        task_description=(
+            "You are a creative data strategist reviewing the EDA profile of a dataset someone emailed in. "
+            "Based on the schema, shape, missingness, and any requester notes, generate insights about "
+            "what this dataset could be used for.\n\n"
+            "Go beyond the obvious. Include practical ideas AND wild, out-of-the-box ones — "
+            "cross-domain mashups, unexpected correlations to investigate, novel visualizations, "
+            "unconventional ML applications, or creative products/apps that could be built from this data. "
+            "Think like a startup founder, an investigative journalist, and a data artist all at once.\n\n"
+            "Return strict JSON with these keys:\n"
+            "- executive_summary: a 1-2 sentence summary of the dataset and its potential\n"
+            "- project_ideas: list of 3-5 concrete, practical project ideas (dashboards, reports, apps, automations)\n"
+            "- wild_ideas: list of 2-3 unconventional or creative ideas that most people wouldn't think of "
+            "(cross-domain applications, art projects, surprising analyses, novel products)\n"
+            "- ml_opportunities: list of 2-4 specific ML tasks that could be attempted "
+            "(mention target columns, task types, and why they'd be interesting)\n"
+            "- data_quality_concerns: list of 1-3 issues worth addressing before analysis\n"
+            "- recommended_next_steps: list of 2-4 prioritized actions the user should take next\n\n"
+            f"Dataset profile: {json.dumps(asdict(profile), ensure_ascii=True)}\n"
+            f"Requester notes: {requester_notes or 'none provided'}"
+        ),
+    )
+
+
 def build_problem_frame(settings: Settings, profile: DatasetProfile, requester_notes: str) -> ProblemFrame:
     payload = _run_json_task(
         settings,

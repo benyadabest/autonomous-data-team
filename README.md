@@ -1,18 +1,12 @@
 # Autonomous Data Team
 
-Autonomous Data Team is an email-driven data science workflow. You send a dataset attachment to `autonomous-data-team@agentmail.to`, the system pulls it into a local worker pipeline, and it replies with findings.
+Autonomous Data Team is an email-driven data science worker. You send a dataset attachment to `autonomous-data-team@agentmail.to`, the service analyzes it, and it replies on the same thread with findings.
 
-The current product is local first:
-
-- AgentMail is the inbox and reply channel
-- the worker process runs on your machine
-- SQLite stores runs and task state locally
-- `pandas` and `scikit-learn` handle profiling and experiments
-- CrewAI is optional for reasoning-oriented steps, but the core data work stays local
+The service is now meant to run remotely as an always-on worker, not on your laptop. AgentMail remains the inbox, but the worker can run in a container on a server or platform-as-a-service host.
 
 ## How it works
 
-When an allowlisted sender emails a supported dataset attachment, the worker:
+When an allowlisted sender emails a supported dataset attachment, the service:
 
 1. downloads the attachment
 2. unpacks zip archives when needed
@@ -41,7 +35,7 @@ Any of these will trigger an EDA-only run:
 - `just EDA`
 - `Mode: EDA`
 
-In this mode, the worker profiles the dataset and writes an EDA report, but it does not run modeling experiments.
+In this mode, the service profiles the dataset and writes an EDA report, but it does not run modeling experiments. When an OpenAI API key is configured, the EDA report also includes LLM-generated insights: practical project ideas, out-of-the-box creative ideas, ML opportunities, data quality concerns, and recommended next steps.
 
 ### EDA + experiments
 
@@ -51,6 +45,27 @@ This is the default. You can also state it explicitly with text like:
 - `EDA and experiments`
 
 If you do not specify a mode, the system assumes `EDA + experiments`.
+
+## Remote operation
+
+The service no longer needs to be tied to your local machine. The intended deployment shape is:
+
+- one always-on worker process
+- one HTTP health endpoint
+- persistent environment variables for secrets
+- writable disk for `runs/` and SQLite
+
+The hosted entrypoint is:
+
+```bash
+autonomous-data-team serve
+```
+
+That command does two things:
+
+- starts the inbox polling worker
+- exposes `GET /` and `GET /healthz` for uptime checks
+
 
 ## Configuration
 
@@ -63,7 +78,7 @@ AGENTMAIL_INBOX_ID=autonomous-data-team@agentmail.to
 AUTHORIZED_SENDERS=you@example.com
 ```
 
-Other useful variables:
+Useful runtime settings:
 
 ```env
 OPENAI_MODEL=gpt-4.1-mini
@@ -71,6 +86,9 @@ RUNS_DIR=./runs
 SWARM_ORCHESTRATOR=crewai
 CREWAI_HOME_DIR=./runs/.crewai_home
 MAX_DATASET_ROWS=50000
+BIND_HOST=0.0.0.0
+PORT=8000
+WORKER_POLL_INTERVAL=300
 ```
 
 If you want deterministic fallback behavior only, set:
@@ -79,26 +97,40 @@ If you want deterministic fallback behavior only, set:
 SWARM_ORCHESTRATOR=heuristic
 ```
 
-## Quick start
+## Running the hosted worker
 
-Create `.env` from the example and install the project into a Python 3.10+ virtual environment. Then you can validate the flow locally with:
-
-```bash
-.venv/bin/autonomous-data-team analyze-dataset \
-  --path tests/fixtures/data/sample.csv \
-  --notes "EDA only"
-```
-
-To process real emails, run:
+For direct execution:
 
 ```bash
-.venv/bin/autonomous-data-team inbox-worker --poll-interval 300
+.venv/bin/autonomous-data-team serve
 ```
 
-For a one-shot poll***:
+For a one-shot mailbox poll:
 
 ```bash
 .venv/bin/autonomous-data-team inbox-worker --once
+```
+
+## Docker
+
+A `Dockerfile` is included so the worker can run on a remote container host.
+
+Build:
+
+```bash
+docker build -t autonomous-data-team .
+```
+
+Run:
+
+```bash
+docker run --env-file .env -p 8000:8000 autonomous-data-team
+```
+
+Health check:
+
+```bash
+curl http://localhost:8000/healthz
 ```
 
 ## Inbox behavior
